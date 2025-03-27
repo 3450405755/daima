@@ -1,0 +1,39 @@
+set hive.exec.mode.local.auto=true;
+
+create database if not exists day0325;
+
+use day0325;
+
+drop table ads_user_num_info;
+create table if not exists ads_user_num_info(
+                                                consignee string comment '姓名',
+                                                readays string comment '日期',
+                                                num int comment '下单次数',
+                                                sal double comment '总金额'
+)row format delimited
+    fields terminated by "\t"
+    location "/2207/gmall1/ads/ads_user_num_info";
+
+insert overwrite table ads_user_num_info
+select consignee,readays,count(*),sum(order_price) from dws_order_info
+                                                            lateral view explode (array(1,7,30))tmp as readays
+group by consignee,readays;
+
+select * from ads_user_num_info;
+
+
+
+
+
+drop table ads_user_fg_info;
+create table if not exists ads_user_fg_info(
+    fugou double comment '复购率'
+)row format delimited
+    fields terminated by "\t"
+    location "/2207/gmall1/ads/ads_user_fg_info";
+
+insert overwrite table ads_user_fg_info
+select round(sum(if(tm_id>=2,1,0))/count(*)*100,2) as fugou from dws_order_info;
+
+select * from ads_user_fg_info;
+

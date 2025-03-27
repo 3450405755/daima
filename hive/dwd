@@ -1,0 +1,486 @@
+set hive.exec.mode.local.auto=true;
+
+create database if not exists day0325;
+
+use day0325;
+
+-- 创建永久函数
+add jar /opt/udtf/untitled-1.0-SNAPSHOT.jar;
+create temporary function expolde as "com.bw.SplitA";
+
+----------------日志-----------------
+-- 启动日志表
+
+DROP TABLE IF EXISTS dwd_start_log;
+CREATE EXTERNAL TABLE dwd_start_log(
+    `area_code` STRING COMMENT '地区编码',
+    `brand` STRING COMMENT '手机品牌',
+    `channel` STRING COMMENT '渠道',
+    `is_new` STRING COMMENT '是否首次启动',
+    `model` STRING COMMENT '手机型号',
+    `mid_id` STRING COMMENT '设备id',
+    `os` STRING COMMENT '操作系统',
+    `user_id` STRING COMMENT '会员id',
+    `version_code` STRING COMMENT 'app版本号',
+    `entry` STRING COMMENT 'icon手机图标 notice 通知 install 安装后启动',
+    `loading_time` BIGINT COMMENT '启动加载时间',
+    `open_ad_id` STRING COMMENT '广告页ID ',
+    `open_ad_ms` BIGINT COMMENT '广告总共播放时间',
+    `open_ad_skip_ms` BIGINT COMMENT '用户跳过广告时点',
+    `ts` BIGINT COMMENT '时间'
+) COMMENT '启动日志表'
+PARTITIONED BY (`dt` STRING) -- 按照时间创建分区
+ -- 采用parquet列式存储
+LOCATION '/2207A/gmall/dwd/dwd_start_log' -- 指定在HDFS上存储位置
+;
+insert overwrite table dwd_start_log partition(dt='2025-03-25')
+select
+    get_json_object(line,'$.common.ar'),
+    get_json_object(line,'$.common.ba'),
+    get_json_object(line,'$.common.ch'),
+    get_json_object(line,'$.common.is_new'),
+    get_json_object(line,'$.common.md'),
+    get_json_object(line,'$.common.mid'),
+    get_json_object(line,'$.common.os'),
+    get_json_object(line,'$.common.uid'),
+    get_json_object(line,'$.common.vc'),
+    get_json_object(line,'$.start.entry'),
+    get_json_object(line,'$.start.loading_time'),
+    get_json_object(line,'$.start.open_ad_id'),
+    get_json_object(line,'$.start.open_ad_ms'),
+    get_json_object(line,'$.start.open_ad_skip_ms'),
+    get_json_object(line,'$.ts')
+from ods_page_log
+where dt='2025-03-25'
+and get_json_object(line,'$.start') is not null;
+
+
+-- 页面日志表
+DROP TABLE IF EXISTS dwd_page_log;
+CREATE EXTERNAL TABLE dwd_page_log(
+    `area_code` STRING COMMENT '地区编码',
+    `brand` STRING COMMENT '手机品牌',
+    `channel` STRING COMMENT '渠道',
+    `is_new` STRING COMMENT '是否首次启动',
+    `model` STRING COMMENT '手机型号',
+    `mid_id` STRING COMMENT '设备id',
+    `os` STRING COMMENT '操作系统',
+    `user_id` STRING COMMENT '会员id',
+    `version_code` STRING COMMENT 'app版本号',
+    `during_time` BIGINT COMMENT '持续时间毫秒',
+    `page_item` STRING COMMENT '目标id ',
+    `page_item_type` STRING COMMENT '目标类型',
+    `last_page_id` STRING COMMENT '上页类型',
+    `page_id` STRING COMMENT '页面ID ',
+    `source_type` STRING COMMENT '来源类型',
+    `ts` bigint
+) COMMENT '页面日志表'
+PARTITIONED BY (`dt` STRING)
+
+LOCATION '/2207A/gmall/dwd/dwd_page_log';
+insert overwrite table dwd_page_log partition(dt='2025-03-25')
+select
+    get_json_object(line,'$.common.ar'),
+    get_json_object(line,'$.common.ba'),
+    get_json_object(line,'$.common.ch'),
+    get_json_object(line,'$.common.is_new'),
+    get_json_object(line,'$.common.md'),
+    get_json_object(line,'$.common.mid'),
+    get_json_object(line,'$.common.os'),
+    get_json_object(line,'$.common.uid'),
+    get_json_object(line,'$.common.vc'),
+    get_json_object(line,'$.page.during_time'),
+    get_json_object(line,'$.page.item'),
+    get_json_object(line,'$.page.item_type'),
+    get_json_object(line,'$.page.last_page_id'),
+    get_json_object(line,'$.page.page_id'),
+    get_json_object(line,'$.page.source_type'),
+    get_json_object(line,'$.ts')
+from ods_page_log
+where dt='2025-03-25'
+and get_json_object(line,'$.page') is not null;
+
+
+-- 动作日志表
+DROP TABLE IF EXISTS dwd_action_log;
+CREATE EXTERNAL TABLE dwd_action_log(
+    `area_code` STRING COMMENT '地区编码',
+    `brand` STRING COMMENT '手机品牌',
+    `channel` STRING COMMENT '渠道',
+    `is_new` STRING COMMENT '是否首次启动',
+    `model` STRING COMMENT '手机型号',
+    `mid_id` STRING COMMENT '设备id',
+    `os` STRING COMMENT '操作系统',
+    `user_id` STRING COMMENT '会员id',
+    `version_code` STRING COMMENT 'app版本号',
+    `during_time` BIGINT COMMENT '持续时间毫秒',
+    `page_item` STRING COMMENT '目标id ',
+    `page_item_type` STRING COMMENT '目标类型',
+    `last_page_id` STRING COMMENT '上页类型',
+    `page_id` STRING COMMENT '页面id ',
+    `source_type` STRING COMMENT '来源类型',
+    `action_id` STRING COMMENT '动作id',
+    `item` STRING COMMENT '目标id ',
+    `item_type` STRING COMMENT '目标类型',
+    `ts` BIGINT COMMENT '时间'
+) COMMENT '动作日志表'
+PARTITIONED BY (`dt` STRING)
+
+LOCATION '/2207A/gmall/dwd/dwd_action_log';
+insert overwrite table dwd_action_log partition(dt='2025-03-25')
+select
+    get_json_object(line,'$.common.ar'),
+    get_json_object(line,'$.common.ba'),
+    get_json_object(line,'$.common.ch'),
+    get_json_object(line,'$.common.is_new'),
+    get_json_object(line,'$.common.md'),
+    get_json_object(line,'$.common.mid'),
+    get_json_object(line,'$.common.os'),
+    get_json_object(line,'$.common.uid'),
+    get_json_object(line,'$.common.vc'),
+    get_json_object(line,'$.page.during_time'),
+    get_json_object(line,'$.page.item'),
+    get_json_object(line,'$.page.item_type'),
+    get_json_object(line,'$.page.last_page_id'),
+    get_json_object(line,'$.page.page_id'),
+    get_json_object(line,'$.page.source_type'),
+    get_json_object(action,'$.action_id'),
+    get_json_object(action,'$.item'),
+    get_json_object(action,'$.item_type'),
+    get_json_object(action,'$.ts')
+from ods_page_log lateral view explode(array(line,'$.actions')) tmp as action
+where dt='2025-03-25'
+and get_json_object(line,'$.actions') is not null;
+
+-- 曝光日志表
+DROP TABLE IF EXISTS dwd_display_log;
+CREATE EXTERNAL TABLE dwd_display_log(
+    `area_code` STRING COMMENT '地区编码',
+    `brand` STRING COMMENT '手机品牌',
+    `channel` STRING COMMENT '渠道',
+    `is_new` STRING COMMENT '是否首次启动',
+    `model` STRING COMMENT '手机型号',
+    `mid_id` STRING COMMENT '设备id',
+    `os` STRING COMMENT '操作系统',
+    `user_id` STRING COMMENT '会员id',
+    `version_code` STRING COMMENT 'app版本号',
+    `during_time` BIGINT COMMENT 'app版本号',
+    `page_item` STRING COMMENT '目标id ',
+    `page_item_type` STRING COMMENT '目标类型',
+    `last_page_id` STRING COMMENT '上页类型',
+    `page_id` STRING COMMENT '页面ID ',
+    `source_type` STRING COMMENT '来源类型',
+    `ts` BIGINT COMMENT 'app版本号',
+    `display_type` STRING COMMENT '曝光类型',
+    `item` STRING COMMENT '曝光对象id ',
+    `item_type` STRING COMMENT 'app版本号',
+    `order` BIGINT COMMENT '曝光顺序',
+    `pos_id` BIGINT COMMENT '曝光位置'
+) COMMENT '曝光日志表'
+PARTITIONED BY (`dt` STRING)
+
+LOCATION '/2207A/gmall/dwd/dwd_display_log';
+insert overwrite table dwd_display_log partition(dt='2025-03-25')
+select
+    get_json_object(line,'$.common.ar'),
+    get_json_object(line,'$.common.ba'),
+    get_json_object(line,'$.common.ch'),
+    get_json_object(line,'$.common.is_new'),
+    get_json_object(line,'$.common.md'),
+    get_json_object(line,'$.common.mid'),
+    get_json_object(line,'$.common.os'),
+    get_json_object(line,'$.common.uid'),
+    get_json_object(line,'$.common.vc'),
+    get_json_object(line,'$.page.during_time'),
+    get_json_object(line,'$.page.item'),
+    get_json_object(line,'$.page.item_type'),
+    get_json_object(line,'$.page.last_page_id'),
+    get_json_object(line,'$.page.page_id'),
+    get_json_object(line,'$.page.source_type'),
+    get_json_object(line,'$.ts'),
+    get_json_object(display,'$.display_type'),
+    get_json_object(display,'$.item'),
+    get_json_object(display,'$.item_type'),
+    get_json_object(display,'$.order'),
+    get_json_object(display,'$.pos_id')
+from ods_page_log lateral view explode(array(line,'$.displays')) tmp as display
+where dt='2025-03-25'
+and get_json_object(line,'$.displays') is not null;
+-- 错误日志表
+
+DROP TABLE IF EXISTS dwd_error_log;
+CREATE EXTERNAL TABLE dwd_error_log(
+    `area_code` STRING COMMENT '地区编码',
+    `brand` STRING COMMENT '手机品牌',
+    `channel` STRING COMMENT '渠道',
+    `is_new` STRING COMMENT '是否首次启动',
+    `model` STRING COMMENT '手机型号',
+    `mid_id` STRING COMMENT '设备id',
+    `os` STRING COMMENT '操作系统',
+    `user_id` STRING COMMENT '会员id',
+    `version_code` STRING COMMENT 'app版本号',
+    `page_item` STRING COMMENT '目标id ',
+    `page_item_type` STRING COMMENT '目标类型',
+    `last_page_id` STRING COMMENT '上页类型',
+    `page_id` STRING COMMENT '页面ID ',
+    `source_type` STRING COMMENT '来源类型',
+    `entry` STRING COMMENT ' icon手机图标  notice 通知 install 安装后启动',
+    `loading_time` STRING COMMENT '启动加载时间',
+    `open_ad_id` STRING COMMENT '广告页ID ',
+    `open_ad_ms` STRING COMMENT '广告总共播放时间',
+    `open_ad_skip_ms` STRING COMMENT '用户跳过广告时点',
+    `actions` STRING COMMENT '动作',
+    `displays` STRING COMMENT '曝光',
+    `ts` STRING COMMENT '时间',
+    `error_code` STRING COMMENT '错误码',
+    `msg` STRING COMMENT '错误信息'
+) COMMENT '错误日志表'
+PARTITIONED BY (`dt` STRING)
+
+LOCATION '/2207A/gmall/dwd/dwd_error_log';
+
+insert overwrite table dwd_error_log partition(dt='2025-03-25')
+select
+    get_json_object(line,'$.common.ar'),
+    get_json_object(line,'$.common.ba'),
+    get_json_object(line,'$.common.ch'),
+    get_json_object(line,'$.common.is_new'),
+    get_json_object(line,'$.common.md'),
+    get_json_object(line,'$.common.mid'),
+    get_json_object(line,'$.common.os'),
+    get_json_object(line,'$.common.uid'),
+    get_json_object(line,'$.common.vc'),
+    get_json_object(line,'$.page.item'),
+    get_json_object(line,'$.page.item_type'),
+    get_json_object(line,'$.page.last_page_id'),
+    get_json_object(line,'$.page.page_id'),
+    get_json_object(line,'$.page.source_type'),
+    get_json_object(line,'$.start.entry'),
+    get_json_object(line,'$.start.loading_time'),
+    get_json_object(line,'$.start.open_ad_id'),
+    get_json_object(line,'$.start.open_ad_ms'),
+    get_json_object(line,'$.start.open_ad_skip_ms'),
+    get_json_object(line,'$.actions'),
+    get_json_object(line,'$.displays'),
+    get_json_object(line,'$.ts'),
+    get_json_object(line,'$.err.error_code'),
+    get_json_object(line,'$.err.msg')
+from ods_page_log
+where dt='2025-03-25'
+and get_json_object(line,'$.err') is not null;
+
+
+
+
+
+
+
+
+
+
+----------------业务事实表-----------------
+-- 1 评价事实表（事务型事实表）
+
+drop table dwd_order_info;
+create table if not exists dwd_order_info(
+    id bigint COMMENT '编号',
+ consignee string COMMENT '收货人',
+ consignee_tel string COMMENT '收件人电话',
+ total_amount decimal(16,2) COMMENT '总金额',
+ order_status string COMMENT '订单状态',
+ user_id bigint COMMENT '用户id',
+ payment_way string COMMENT '付款方式',
+ delivery_address string COMMENT '送货地址',
+ order_comment string COMMENT '订单备注',
+ out_trade_no string COMMENT '订单交易编号（第三方支付用)',
+ trade_body string COMMENT '订单描述(第三方支付用)',
+ create_time string COMMENT '创建时间',
+ operate_time string COMMENT '操作时间',
+ expire_time string COMMENT '失效时间',
+ process_status string COMMENT '进度状态',
+ tracking_no string COMMENT '物流单编号',
+ parent_order_id bigint COMMENT '父订单编号',
+ img_url string COMMENT '图片路径',
+ province_id int COMMENT '地区',
+ activity_reduce_amount decimal(16,2) COMMENT '促销金额',
+ coupon_reduce_amount decimal(16,2) COMMENT '优惠券',
+ original_total_amount decimal(16,2) COMMENT '原价金额',
+ feight_fee decimal(16,2) COMMENT '运费',
+ feight_fee_reduce decimal(16,2) COMMENT '运费减免',
+ refundable_time string COMMENT '可退款日期（签收后30天）'
+    )partitioned by (dt string)
+row format delimited
+fields terminated by "\t"
+location "/2207/gmall1/dwd/dwd_order_info"
+;
+
+insert overwrite table dwd_order_info partition (dt="2025-03-25")
+select
+ id                    ,
+ consignee             ,
+ consignee_tel         ,
+ total_amount          ,
+ order_status          ,
+ user_id               ,
+ payment_way           ,
+ delivery_address      ,
+ order_comment         ,
+ out_trade_no          ,
+ trade_body            ,
+ create_time           ,
+ operate_time          ,
+ expire_time           ,
+ process_status        ,
+ tracking_no           ,
+ parent_order_id       ,
+ img_url               ,
+ province_id           ,
+ activity_reduce_amount,
+ coupon_reduce_amount  ,
+ original_total_amount ,
+ feight_fee            ,
+ feight_fee_reduce     ,
+ refundable_time
+    from ods_order_info;
+
+
+select * from dwd_order_info;
+
+
+
+
+
+
+drop table dwd_order_detail;
+create table if not exists dwd_order_detail(
+  id bigint COMMENT '编号',
+ order_id bigint COMMENT '订单编号',
+ sku_id bigint COMMENT 'sku_id',
+ sku_name string COMMENT 'sku名称（冗余)',
+ img_url string COMMENT '图片名称（冗余)',
+ order_price decimal(16,2) COMMENT '购买价格(下单时sku价格）',
+ sku_num string COMMENT '购买个数',
+ create_time string COMMENT '创建时间',
+ source_type string COMMENT '来源类型',
+ source_id bigint COMMENT '来源编号',
+ split_total_amount decimal(16,2),
+ split_activity_amount decimal(16,2),
+ split_coupon_amount decimal(16,2)
+    )partitioned by (dt string)
+row format delimited
+fields terminated by "\t"
+location "/2207/gmall1/dwd/dwd_order_detail";
+
+insert overwrite table dwd_order_detail partition (dt="2025-03-25")
+select
+      id                   ,
+  order_id             ,
+  sku_id               ,
+  sku_name             ,
+  img_url              ,
+  order_price          ,
+  sku_num              ,
+  create_time          ,
+  source_type          ,
+  source_id            ,
+  split_total_amount   ,
+  split_activity_amount,
+  split_coupon_amount
+    from ods_order_detail;
+
+select * from dwd_order_detail;
+
+
+
+
+
+drop table dwd_sku_info;
+create table if not exists dwd_sku_info(
+id bigint COMMENT '库存id(itemID)',
+ spu_id bigint COMMENT '商品id',
+ price decimal(16,2) COMMENT '价格',
+ sku_name string COMMENT 'sku名称',
+ sku_desc string COMMENT '商品规格描述',
+ weight decimal(16,2) COMMENT '重量',
+ tm_id bigint COMMENT '品牌(冗余)',
+ category3_id bigint COMMENT '三级分类id（冗余)',
+ sku_default_img string COMMENT '默认显示图片(冗余)',
+ is_sale string COMMENT '是否销售（1：是 0：否）',
+ create_time string COMMENT '创建时间'
+    )partitioned by (dt string)
+row format delimited
+fields terminated by "\t"
+location "/2207/gmall1/dwd/dwd_sku_info";
+
+
+insert overwrite table dwd_sku_info partition (dt="2025-03-25")
+select
+ id             ,
+ spu_id         ,
+ price          ,
+ sku_name       ,
+ sku_desc       ,
+ weight         ,
+ tm_id          ,
+ category3_id   ,
+ sku_default_img,
+ is_sale        ,
+ create_time
+    from ods_sku_info;
+
+select * from dwd_sku_info;
+
+
+
+
+
+
+
+
+
+drop table dwd_user_info;
+create table if not exists dwd_user_info(
+id bigint COMMENT '编号',
+ login_name string COMMENT '用户名称',
+ nick_name string COMMENT '用户昵称',
+ passwd string COMMENT '用户密码',
+ name string COMMENT '用户姓名',
+ phone_num string COMMENT '手机号',
+ email string COMMENT '邮箱',
+ head_img string COMMENT '头像',
+ user_level string COMMENT '用户级别',
+ birthday string COMMENT '用户生日',
+ gender string COMMENT '性别 M男,F女',
+ create_time string COMMENT '创建时间',
+ operate_time string COMMENT '修改时间',
+ status string COMMENT '状态'
+    )partitioned by (dt string)
+row format delimited
+fields terminated by "\t"
+location "/2207/gmall1/dwd/dwd_user_info";
+
+insert overwrite table dwd_user_info partition (dt="2025-03-25")
+select
+ id          ,
+ login_name  ,
+ nick_name   ,
+ passwd      ,
+ name        ,
+ phone_num   ,
+ email       ,
+ head_img    ,
+ user_level  ,
+ birthday    ,
+ gender      ,
+ create_time ,
+ operate_time,
+ status
+    from ods_user_info;
+
+select * from dwd_sku_info;
+
+
+
+
+
+
