@@ -1,0 +1,84 @@
+set hive.exec.mode.local.auto=true;
+
+create database if not exists dev_realtime_v1_wenqi_hu;
+
+use dev_realtime_v1_wenqi_hu;
+
+truncate table dev_realtime_v1_wenqi_hu.online_retailers_target;
+create table if not exists dev_realtime_v1_wenqi_hu.online_retailers_target(
+    readays string comment '1,7,30',
+    uv bigint comment '商品访客数',
+    pv bigint comment '商品浏览量',
+    uv_num string comment '有访问商品数',
+    avg_stop decimal(16,2) comment '平均停留',
+    jump decimal(16,2) comment '跳出率',
+    collect bigint comment '收藏人数',
+    jia_jian bigint comment '加购件数',
+    Add_purchase bigint comment '加购人数',
+    vf decimal(16,2) comment '访问收藏转化率',
+    ap decimal(16,2) comment '访问加购转化率',
+    Place_Order bigint comment '下单买家数',
+    Place_jian bigint comment '下单件数',
+    Place_price decimal(16,2) comment '下单金额',
+    Place_shift decimal(16,2) comment '下单转化率',
+    buyer bigint comment '支付买家数',
+    jian bigint comment '支付件数',
+    price decimal(16,2) comment '支付金额',
+    goods string comment '有支付商品数',
+    zhifu decimal(16,2) comment '支付转化率',
+    zhi_xmai string comment '支付新买家数',
+    zhi_lmai string comment '支付老买家数',
+    Customer_price decimal(16,2) comment '客单价',
+    Successful_price decimal(16,2) comment '成功退款退货金额',
+    year_lei_price decimal(16,2) comment '年累计支付金额',
+    avg_sal decimal(16,2) comment '访客平均价值',
+    a string comment '竞争力评分',
+    shop_detail string comment '商品微详情访客数'
+)
+    row format delimited
+fields terminated by "\t"
+location "/1234/ads/online_retailers_target";
+
+insert overwrite table online_retailers_target
+select
+    readays,
+    sum(dw.visit_uv),--  商品访客数
+    count(dw.visit_pv),--商品浏览量
+    0,--有访问商品数
+    avg(dw.avg_stay_time),--平均停留
+    sum(dw.bounce_rate),-- 跳出率
+    sum(dw.favor_uv),-- 收藏人数
+    sum(dw.cart_num),-- 加购件数
+    sum(dw.cart_uv),-- 加购人数
+    round(sum(if(dw.cart_uv>=0,1,0))/count(*)*100,2),--访问收藏转化率
+    round(sum(if(dw.cart_uv>=1,1,0))/count(*)*100,2), --访问加购转化率
+    count(distinct dw.user_id),--下单买家数
+    sum(dw.cart_num),--下单件数
+    sum(dw.order_price),--下单金额
+    count(distinct dw.user_id)/count(*), --下单转化率
+    sum(if(dw.order_status==1002,dw.user_id,0)),  --支付买家数
+    sum(if(dw.order_status==1002,dw.cart_num,0)),--支付件数
+    sum(if(dw.order_status==1002,dw.order_price,0)), --支付金额
+    0,--有支付商品数
+    round(sum(if(dw.order_status==1002,1,0))/count(*)*100,2),--支付转化率
+    0,--支付新买家数
+    0,--支付老买家数
+    sum(dw.order_price)/count(distinct dw.user_id),--客单价
+    sum(if(dw.order_status==1006,dw.order_price,0)),--成功退款退货金额
+    0,--年累计支付金额
+    round(avg(if(dw.order_status==1002,order_price,0))/count(*)),--访客平均价值
+    case
+        when dw.order_status=1203 then '差评'
+        when dw.order_status=1202 then '中评'
+        when dw.order_status=1201 then '好评'
+end a,--竞争力评分
+    0 --商品微详情访客数
+from  dws_weight dw lateral view explode (array(1,7,30))tmp as readays where ds >"20250330"-readays+1
+group by readays,order_status;
+
+select * from online_retailers_target;
+
+
+
+
+
